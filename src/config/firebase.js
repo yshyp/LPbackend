@@ -8,6 +8,29 @@ const initializeFirebase = () => {
       return admin.apps[0];
     }
 
+    // Check if Firebase credentials are properly configured
+    const requiredFields = [
+      'FIREBASE_PROJECT_ID',
+      'FIREBASE_PRIVATE_KEY_ID', 
+      'FIREBASE_PRIVATE_KEY',
+      'FIREBASE_CLIENT_EMAIL'
+    ];
+
+    const missingFields = requiredFields.filter(field => 
+      !process.env[field] || 
+      process.env[field].includes('your-') || 
+      process.env[field] === 'your-firebase-project-id' ||
+      process.env[field] === 'your-firebase-private-key-id' ||
+      process.env[field] === 'your-firebase-private-key' ||
+      process.env[field] === 'your-firebase-client-email'
+    );
+
+    if (missingFields.length > 0) {
+      console.log('⚠️ Firebase credentials not configured. Skipping Firebase initialization.');
+      console.log('📱 Push notifications will be disabled');
+      return null;
+    }
+
     // Service account configuration from environment variables
     const serviceAccount = {
       type: "service_account",
@@ -32,13 +55,21 @@ const initializeFirebase = () => {
     return app;
   } catch (error) {
     console.error('❌ Firebase initialization error:', error);
-    throw new Error('Failed to initialize Firebase Admin SDK');
+    console.log('⚠️ Firebase initialization failed: Failed to initialize Firebase Admin SDK');
+    console.log('📱 Push notifications will be disabled');
+    return null;
   }
 };
 
 // Send notification to a single device
 const sendNotification = async (token, title, body, data = {}) => {
   try {
+    // Check if Firebase is initialized
+    if (admin.apps.length === 0) {
+      console.log('⚠️ Firebase not initialized. Push notification skipped.');
+      return { success: false, reason: 'Firebase not configured' };
+    }
+
     const message = {
       notification: {
         title,
@@ -63,6 +94,12 @@ const sendNotification = async (token, title, body, data = {}) => {
 // Send notification to multiple devices
 const sendMulticastNotification = async (tokens, title, body, data = {}) => {
   try {
+    // Check if Firebase is initialized
+    if (admin.apps.length === 0) {
+      console.log('⚠️ Firebase not initialized. Multicast push notification skipped.');
+      return { successCount: 0, failureCount: tokens.length, success: false, reason: 'Firebase not configured' };
+    }
+
     const message = {
       notification: {
         title,
@@ -83,13 +120,19 @@ const sendMulticastNotification = async (tokens, title, body, data = {}) => {
     return response;
   } catch (error) {
     console.error('❌ Multicast notification error:', error);
-    throw error;
+    return { successCount: 0, failureCount: tokens.length, success: false, error: error.message };
   }
 };
 
 // Send notification to a topic
 const sendTopicNotification = async (topic, title, body, data = {}) => {
   try {
+    // Check if Firebase is initialized
+    if (admin.apps.length === 0) {
+      console.log('⚠️ Firebase not initialized. Topic push notification skipped.');
+      return { success: false, reason: 'Firebase not configured' };
+    }
+
     const message = {
       notification: {
         title,
@@ -114,24 +157,36 @@ const sendTopicNotification = async (topic, title, body, data = {}) => {
 // Subscribe device to a topic
 const subscribeToTopic = async (tokens, topic) => {
   try {
+    // Check if Firebase is initialized
+    if (admin.apps.length === 0) {
+      console.log('⚠️ Firebase not initialized. Topic subscription skipped.');
+      return { successCount: 0, failureCount: Array.isArray(tokens) ? tokens.length : 1, success: false, reason: 'Firebase not configured' };
+    }
+
     const response = await admin.messaging().subscribeToTopic(tokens, topic);
     console.log('✅ Subscribed to topic:', response);
     return response;
   } catch (error) {
     console.error('❌ Subscribe to topic error:', error);
-    throw error;
+    return { successCount: 0, failureCount: Array.isArray(tokens) ? tokens.length : 1, success: false, error: error.message };
   }
 };
 
 // Unsubscribe device from a topic
 const unsubscribeFromTopic = async (tokens, topic) => {
   try {
+    // Check if Firebase is initialized
+    if (admin.apps.length === 0) {
+      console.log('⚠️ Firebase not initialized. Topic unsubscription skipped.');
+      return { successCount: 0, failureCount: Array.isArray(tokens) ? tokens.length : 1, success: false, reason: 'Firebase not configured' };
+    }
+
     const response = await admin.messaging().unsubscribeFromTopic(tokens, topic);
     console.log('✅ Unsubscribed from topic:', response);
     return response;
   } catch (error) {
     console.error('❌ Unsubscribe from topic error:', error);
-    throw error;
+    return { successCount: 0, failureCount: Array.isArray(tokens) ? tokens.length : 1, success: false, error: error.message };
   }
 };
 
