@@ -1,0 +1,30 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\laragon\\www\\lifepulse\\backend\\logs\\.f266dca126b22c1377b787b46983395d7daae1c5-audit.json",
+    "files": [
+        {
+            "date": 1751215344062,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\combined-2025-06-29.log",
+            "hash": "2eeab46b0e507ed8f02e94605ca3c78dd23c6c2b63bbf5a006b960fc9bc53e64"
+        },
+        {
+            "date": 1751243719496,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\combined-2025-06-30.log",
+            "hash": "ad829f76b13bdcd17d9752af15726d02256116ead0b689df03a3cd7f6bb8dd66"
+        },
+        {
+            "date": 1751388051528,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\combined-2025-07-01.log",
+            "hash": "c9d6447626c6c62c50b83cf19dcc29083770dd35d4b43d170d9acfb29ad3ea55"
+        },
+        {
+            "date": 1751518777687,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\combined-2025-07-03.log",
+            "hash": "7e91a3afb33e697e03ca93b622d265fbde5135453481a92f70b6c5332dc21782"
+        }
+    ],
+    "hashType": "sha256"
+}
