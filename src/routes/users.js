@@ -52,46 +52,51 @@ const updateProfileValidation = [
 // @access  Private
 router.post('/fcm-token', auth, async (req, res) => {
   try {
-    const requestInfo = getRequestInfo(req);
     const { fcmToken } = req.body;
     
+    console.log('📱 FCM Token registration request:', {
+      userId: req.user?._id,
+      userPhone: req.user?.phone,
+      userEmail: req.user?.email,
+      tokenExists: !!fcmToken,
+      tokenLength: fcmToken?.length,
+      reqUserType: typeof req.user,
+      isUserObject: req.user ? true : false
+    });
+    
     if (!fcmToken) {
-      logSecurity('fcm_token_missing', {
-        userId: req.user.userId,
-        phone: req.user.phone,
-        ...requestInfo
-      });
-      
       return res.status(400).json({ error: 'FCM token is required' });
     }
 
-    const oldToken = req.user.fcmToken;
+    // Since req.user is already the full user object from auth middleware,
+    // we can update it directly
+    if (!req.user) {
+      console.error('❌ No user found in req.user');
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    console.log('🔍 User found in req.user:', {
+      id: req.user._id,
+      email: req.user.email,
+      phone: req.user.phone,
+      name: req.user.name
+    });
+
+    // Update FCM token directly on the user object
     req.user.fcmToken = fcmToken;
     await req.user.save();
 
-    logUserActivity('fcm_token_updated', req.user.userId, req.user.phone, {
-      oldToken: oldToken ? 'exists' : 'none',
-      newToken: 'updated',
-      ...requestInfo
-    });
-
+    console.log('✅ FCM token updated successfully for user:', req.user.phone || req.user.email);
+    
     res.json({
       message: 'FCM token registered successfully',
-      fcmToken: req.user.fcmToken
+      success: true,
+      userId: req.user._id
     });
 
   } catch (error) {
-    logError(error, {
-      context: 'users.fcm_token_update',
-      userId: req.user.userId,
-      phone: req.user.phone,
-      ...getRequestInfo(req)
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to register FCM token',
-      message: error.message 
-    });
+    console.error('❌ FCM token registration error:', error);
+    res.status(500).json({ error: 'Failed to register FCM token' });
   }
 });
 
@@ -634,4 +639,47 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Add this temporary debug route
+router.get('/debug-auth', auth, async (req, res) => {
+  try {
+    console.log('🔍 Debug auth - req.user:', req.user);
+    
+    const user = await User.findById(req.user.userId);
+    console.log('🔍 Debug auth - user found:', !!user);
+    console.log('🔍 Debug auth - user details:', user ? {
+      id: user._id,
+      phone: user.phone,
+      email: user.email,
+      name: user.name
+    } : 'N/A');
+    
+    res.json({
+      authUser: req.user,
+      dbUser: user ? {
+        id: user._id,
+        phone: user.phone,
+        email: user.email,
+        name: user.name,
+        fcmToken: user.fcmToken
+      } : null
+    });
+  } catch (error) {
+    console.error('❌ Debug auth error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router;
+
+// Add this to your frontend app temporarily (you can put it in a button or call it from console)
+const testDebugAuth = async () => {
+  try {
+    const response = await apiService.get('/api/users/debug-auth');
+    console.log('🔍 Debug auth response:', response.data);
+  } catch (error) {
+    console.error('❌ Debug auth failed:', error.response?.data);
+  }
+};
+
+// Call this function after login
+testDebugAuth();

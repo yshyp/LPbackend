@@ -9,42 +9,41 @@ const getRequestContext = (req) => ({
   path: req.path
 });
 
+// Make sure your auth middleware is setting req.user correctly:
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
+    console.log('🔐 Auth middleware - token present:', !!token);
+    
     if (!token) {
-      return res.status(401).json({ 
-        error: 'Access denied. No token provided.' 
-      });
+      return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-fcmToken');
+    console.log('🔐 Auth middleware - decoded token:', {
+      userId: decoded.userId,
+      phone: decoded.phone,
+      email: decoded.email,
+      iat: decoded.iat,
+      exp: decoded.exp
+    });
     
+    // Find the user and attach to req.user
+    const user = await User.findById(decoded.userId);
     if (!user) {
-      return res.status(401).json({ 
-        error: 'Invalid token. User not found.' 
-      });
+      return res.status(401).json({ error: 'Invalid token - user not found.' });
     }
-
-    req.user = user;
-    req.token = token;
+    
+    req.user = user; // This sets req.user to the full user object
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
-        error: 'Invalid token.' 
-      });
-    }
+    console.error('❌ Auth middleware error:', error.message);
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        error: 'Token expired.' 
-      });
+      res.status(401).json({ error: 'Token expired.' });
+    } else {
+      res.status(401).json({ error: 'Invalid token.' });
     }
-    res.status(500).json({ 
-      error: 'Token verification failed.' 
-    });
   }
 };
 
@@ -112,4 +111,4 @@ module.exports = {
   isRequester,
   isDonorOrRequester,
   getRequestContext
-}; 
+};
