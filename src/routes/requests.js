@@ -65,6 +65,18 @@ router.get('/', auth, isDonor, async (req, res) => {
       
       return res.status(400).json({ error: 'Longitude and latitude are required' });
     }
+
+    // Validate coordinates are not 0,0 (invalid location)
+    if (parseFloat(longitude) === 0 && parseFloat(latitude) === 0) {
+      logSecurity('requests_list_invalid_coordinates', {
+        userId: req.user.userId,
+        phone: req.user.phone,
+        query: req.query,
+        ...requestInfo
+      });
+      
+      return res.status(400).json({ error: 'Invalid location coordinates. Please enable location access.' });
+    }
     
     const requests = await BloodRequest.findNearbyRequests(
       parseFloat(longitude),

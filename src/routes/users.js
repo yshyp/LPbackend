@@ -437,6 +437,20 @@ router.get('/nearby-donors', auth, async (req, res) => {
       });
     }
 
+    // Validate coordinates are not 0,0 (invalid location)
+    if (parseFloat(longitude) === 0 && parseFloat(latitude) === 0) {
+      logSecurity('nearby_donors_invalid_coordinates', {
+        userId: req.user.userId,
+        phone: req.user.phone,
+        query: req.query,
+        ...requestInfo
+      });
+      
+      return res.status(400).json({ 
+        error: 'Invalid location coordinates. Please enable location access.' 
+      });
+    }
+
     const donors = await User.findNearbyDonors(
       parseFloat(longitude),
       parseFloat(latitude),
@@ -492,6 +506,20 @@ router.get('/nearby-requesters', auth, async (req, res) => {
       
       return res.status(400).json({ 
         error: 'Longitude and latitude are required' 
+      });
+    }
+
+    // Validate coordinates are not 0,0 (invalid location)
+    if (parseFloat(longitude) === 0 && parseFloat(latitude) === 0) {
+      logSecurity('nearby_requesters_invalid_coordinates', {
+        userId: req.user.userId,
+        phone: req.user.phone,
+        query: req.query,
+        ...requestInfo
+      });
+      
+      return res.status(400).json({ 
+        error: 'Invalid location coordinates. Please enable location access.' 
       });
     }
 
