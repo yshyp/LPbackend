@@ -1,5 +1,5 @@
 require('dotenv').config();
-const whatsappService = require('./src/services/whatsappService');
+const whatsappService = require('../src/services/whatsappService');
 
 async function testSMS() {
   const phone = '+919656595993'; // Replace with your test number

@@ -1,5 +1,5 @@
 require('dotenv').config();
-const whatsappService = require('./src/services/whatsappService');
+const whatsappService = require('../src/services/whatsappService');
 
 async function testTwilioVerify() {
   const phone = '+918893706307'; // Your test number
