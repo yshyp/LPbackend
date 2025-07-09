@@ -50,3 +50,11 @@
 {"level":"info","logType":"SYSTEM","message":"System database_connected","service":"lifepulse-api","timestamp":"2025-07-03 13:50:14","uri":"configured"}
 {"level":"info","logType":"SYSTEM","message":"System firebase_initialized","service":"lifepulse-api","timestamp":"2025-07-03 13:50:15"}
 {"environment":"development","level":"info","logType":"SYSTEM","message":"System server_started","nodeVersion":"v20.16.0","port":"5000","service":"lifepulse-api","timestamp":"2025-07-03 13:50:15"}
+{"host":"smtp.gmail.com","level":"info","logType":"SYSTEM","message":"System email_service_initialized","port":"587","secure":false,"service":"lifepulse-api","timestamp":"2025-07-03 15:33:43"}
+{"level":"info","logType":"SYSTEM","message":"System database_connected","service":"lifepulse-api","timestamp":"2025-07-03 15:33:43","uri":"configured"}
+{"level":"info","logType":"SYSTEM","message":"System firebase_initialized","service":"lifepulse-api","timestamp":"2025-07-03 15:33:43"}
+{"environment":"development","level":"info","logType":"SYSTEM","message":"System server_started","nodeVersion":"v20.16.0","port":"5000","service":"lifepulse-api","timestamp":"2025-07-03 15:33:43"}
+{"ip":"192.168.1.8","level":"info","logType":"SYSTEM","message":"System route_not_found","method":"HEAD","path":"/","service":"lifepulse-api","timestamp":"2025-07-03 16:23:52","userAgent":"okhttp/4.9.2"}
+{"ip":"192.168.1.8","level":"info","logType":"SYSTEM","message":"System route_not_found","method":"GET","path":"/","service":"lifepulse-api","timestamp":"2025-07-03 16:23:52","userAgent":"okhttp/4.9.2"}
+{"ip":"192.168.1.8","level":"info","logType":"SYSTEM","message":"System route_not_found","method":"HEAD","path":"/","service":"lifepulse-api","timestamp":"2025-07-03 16:26:31","userAgent":"okhttp/4.9.2"}
+{"ip":"192.168.1.8","level":"info","logType":"SYSTEM","message":"System route_not_found","method":"GET","path":"/","service":"lifepulse-api","timestamp":"2025-07-03 16:26:31","userAgent":"okhttp/4.9.2"}

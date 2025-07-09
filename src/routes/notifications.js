@@ -140,8 +140,8 @@ router.post('/request-created', auth, async (req, res) => {
 
     // Find nearby available donors
     const nearbyDonors = await User.find({
-      role: 'donor',
-      isAvailable: true,
+      role: 'DONOR',
+      availability: true,
       fcmToken: { $ne: null },
       location: {
         $near: {
@@ -201,6 +201,49 @@ router.post('/request-created', auth, async (req, res) => {
     });
     
     res.status(500).json({ error: 'Failed to send notifications', message: error.message });
+  }
+});
+
+// @route   POST /api/notifications/test
+// @desc    Test push notification (for debugging)
+// @access  Private
+router.post('/test', auth, async (req, res) => {
+  try {
+    const requestInfo = getRequestInfo(req);
+    const { title, body, data } = req.body;
+    
+    if (!title || !body) {
+      return res.status(400).json({ error: 'title and body are required' });
+    }
+
+    // Send notification to the current user
+    if (!req.user.fcmToken) {
+      return res.status(400).json({ error: 'No FCM token found for user' });
+    }
+
+    const response = await sendNotification(req.user.fcmToken, title, body, data || {});
+    
+    logUserActivity('test_notification_sent', req.user.userId, req.user.phone, {
+      title,
+      body,
+      success: response.success,
+      ...requestInfo
+    });
+
+    res.json({ 
+      message: 'Test notification sent',
+      success: response.success,
+      error: response.error
+    });
+  } catch (error) {
+    logError(error, {
+      context: 'notifications.test',
+      userId: req.user.userId,
+      phone: req.user.phone,
+      ...getRequestInfo(req)
+    });
+    
+    res.status(500).json({ error: 'Failed to send test notification', message: error.message });
   }
 });
 

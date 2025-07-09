@@ -47,6 +47,54 @@ const updateProfileValidation = [
     .withMessage('Relationship must be between 2 and 30 characters')
 ];
 
+// @route   POST /api/users/fcm-token
+// @desc    Register FCM token for push notifications
+// @access  Private
+router.post('/fcm-token', auth, async (req, res) => {
+  try {
+    const requestInfo = getRequestInfo(req);
+    const { fcmToken } = req.body;
+    
+    if (!fcmToken) {
+      logSecurity('fcm_token_missing', {
+        userId: req.user.userId,
+        phone: req.user.phone,
+        ...requestInfo
+      });
+      
+      return res.status(400).json({ error: 'FCM token is required' });
+    }
+
+    const oldToken = req.user.fcmToken;
+    req.user.fcmToken = fcmToken;
+    await req.user.save();
+
+    logUserActivity('fcm_token_updated', req.user.userId, req.user.phone, {
+      oldToken: oldToken ? 'exists' : 'none',
+      newToken: 'updated',
+      ...requestInfo
+    });
+
+    res.json({
+      message: 'FCM token registered successfully',
+      fcmToken: req.user.fcmToken
+    });
+
+  } catch (error) {
+    logError(error, {
+      context: 'users.fcm_token_update',
+      userId: req.user.userId,
+      phone: req.user.phone,
+      ...getRequestInfo(req)
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to register FCM token',
+      message: error.message 
+    });
+  }
+});
+
 // @route   PUT /api/users/me/location
 // @desc    Update user location and FCM token
 // @access  Private

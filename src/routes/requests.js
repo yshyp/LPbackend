@@ -151,13 +151,13 @@ router.post('/', auth, isRequester, createRequestValidation, async (req, res) =>
     
     try {
       const nearbyDonors = await User.find({
-        role: 'donor',
-        isAvailable: true,
+        role: 'DONOR',
+        availability: true,
         fcmToken: { $ne: null },
         location: {
           $near: {
             $geometry: request.location,
-          $maxDistance: 20000 // 20km radius
+            $maxDistance: 20000 // 20km radius
           }
         }
       }).limit(20); // Limit to 20 nearby donors

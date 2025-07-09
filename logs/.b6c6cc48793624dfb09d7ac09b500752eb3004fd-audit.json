@@ -6,24 +6,29 @@
     "auditLog": "C:\\laragon\\www\\lifepulse\\backend\\logs\\.b6c6cc48793624dfb09d7ac09b500752eb3004fd-audit.json",
     "files": [
         {
-            "date": 1751215344064,
-            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-06-29.log",
-            "hash": "f4d4dc9fc32b1778ca0ede31f7e852b76dc40ecd66c6e15f0f1b0d3dc052e121"
-        },
-        {
-            "date": 1751243719498,
-            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-06-30.log",
-            "hash": "bf530188a2411c1ed902465109ac3c54dafb82b55d3eb4af3bca4cb368676bfa"
-        },
-        {
-            "date": 1751388051530,
-            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-07-01.log",
-            "hash": "15108e6ca911876fd9fb3f056210aea8d09196f04ea6573a8221a02e619bdc78"
-        },
-        {
             "date": 1751518777689,
             "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-07-03.log",
             "hash": "439b8671ff734497d8faa9884ec341f11628d801e1f504bc93502eaa4b00fc8e"
+        },
+        {
+            "date": 1751603815157,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-07-04.log",
+            "hash": "58f55575ac635f67d933dc8fa9f8f901f5fbe3a8c513e5f8d7e9fc5cd196f12f"
+        },
+        {
+            "date": 1751706971599,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-07-05.log",
+            "hash": "a26335a074518d84d2612a3c036b37ec1fb3f8dd9bf17c21ccf0b3dffcdf774b"
+        },
+        {
+            "date": 1751771191100,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-07-06.log",
+            "hash": "e9c08ba7ffb4e3a36acf3f97b803edceea61b92ae0e3fc99748c720706fd44d3"
+        },
+        {
+            "date": 1752060091451,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\otp-2025-07-09.log",
+            "hash": "20d400fc06a41a11235f3bd10d6d4b3fb7bf52413a5d0f14eb6ec7e192eac760"
         }
     ],
     "hashType": "sha256"

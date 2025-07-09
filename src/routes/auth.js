@@ -176,221 +176,106 @@ router.post('/register-verified', [
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-router.post('/register', [
-  body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
-  body('email').isEmail().withMessage('Please enter a valid email'),
-  body('phone').trim().matches(/^\+?[\d\s-()]+$/).withMessage('Please enter a valid phone number'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('bloodGroup').isIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).withMessage('Invalid blood group'),
-  body('role').isIn(['DONOR', 'REQUESTER']).withMessage('Role must be either DONOR or REQUESTER'),
-  body('verificationPreference').optional().isIn(['SMS', 'EMAIL', 'BOTH']).withMessage('Verification preference must be SMS, EMAIL, or BOTH')
-], async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const requestInfo = getRequestInfo(req);
+    const { name, email, phone, password, bloodGroup, latitude, longitude, role } = req.body;
     
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      logSecurity('registration_validation_failed', {
-        phone: req.body.phone,
-        errors: errors.array(),
-        ...requestInfo
-      });
-      
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
+    // Validation
+    if (!name || !phone || !password || !bloodGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, phone, password, and blood group are required'
       });
     }
 
-    const { name, email, phone, password, bloodGroup, role, fcmToken, verificationPreference = 'SMS' } = req.body;
-
     // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { phone }] 
+    const existingUser = await User.findOne({
+      $or: [
+        { phone: phone },
+        ...(email && !email.includes('@placeholder.lifepulse') ? [{ email: email }] : [])
+      ]
     });
 
     if (existingUser) {
-      logSecurity('registration_duplicate_user', {
-        phone,
-        email,
-        existingUserId: existingUser._id,
-        ...requestInfo
-      });
-      
-      return res.status(400).json({ 
-        error: 'User already exists with this email or phone number' 
+      return res.status(400).json({
+        success: false,
+        message: 'User with this phone number already exists'
       });
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
-    const user = new User({
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create user with proper email handling
+    const userData = {
       name,
-      email,
       phone,
       password: hashedPassword,
       bloodGroup,
-      role,
-      fcmToken,
-      verificationPreference
-    });
+      location: {
+        type: 'Point',
+        coordinates: [longitude || 0, latitude || 0]
+      },
+      role: role || 'DONOR',
+      verified: false
+    };
 
-    await user.save();
+    // Only add email if it's not a placeholder
+    if (email && !email.includes('@placeholder.lifepulse')) {
+      userData.email = email;
+    }
 
-    // Send verification based on preference
-    let verificationSent = false;
-    let verificationMethod = null;
+    const user = new User(userData);
+    const savedUser = await user.save();
 
-    if (verificationPreference === 'EMAIL' || verificationPreference === 'BOTH') {
-      try {
-        const verification = await EmailVerification.createVerification(
-          user._id,
-          user.email,
-          'EMAIL_VERIFICATION',
-          requestInfo.ip,
-          requestInfo.userAgent
-        );
+    // Send verification using the verification service
+    const requestInfo = {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    };
 
-        const emailResult = await emailService.sendVerificationEmail(
-          user.email,
-          verification.token,
-          user.name
-        );
+    try {
+      // Use the verification service instead of whatsappService directly
+      const verificationResult = await verificationService.sendVerificationCode(
+        phone,
+        'REGISTRATION',
+        name,
+        requestInfo
+      );
 
-        if (emailResult.success) {
-          verificationSent = true;
-          verificationMethod = 'EMAIL';
-          logUserActivity('email_verification_sent_after_registration', user._id, phone, {
-            email: user.email.replace(/\w(?=\w{2})/g, '*'),
-            messageId: emailResult.messageId,
-            verificationPreference,
-            ...requestInfo
-          });
-        } else {
-          logError(new Error(emailResult.error), {
-            context: 'auth.register.email_verification',
-            userId: user._id,
-            email: user.email.replace(/\w(?=\w{2})/g, '*'),
-            verificationPreference,
-            ...requestInfo
-          });
-        }
-      } catch (emailError) {
-        logError(emailError, {
-          context: 'auth.register.email_verification',
-          userId: user._id,
-          email: user.email.replace(/\w(?=\w{2})/g, '*'),
-          verificationPreference,
-          ...requestInfo
+      if (!verificationResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: verificationResult.error || 'Failed to send verification code'
         });
       }
+
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful. Please verify your phone number.',
+        userId: savedUser._id,
+        verificationMethod: verificationResult.method
+      });
+
+    } catch (verificationError) {
+      console.error('❌ Verification error:', verificationError);
+      
+      // Registration was successful, but verification failed
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful, but verification failed. Please try again.',
+        userId: savedUser._id,
+        verificationError: verificationError.message
+      });
     }
-
-    if (verificationPreference === 'SMS' || (verificationPreference === 'BOTH' && !verificationSent)) {
-      try {
-        // Generate and save OTP
-        const otpRecord = await OTP.createOTP(phone, 'REGISTRATION', 10, requestInfo);
-
-        // Send OTP via WhatsApp/SMS
-        const formattedPhone = whatsappService.formatPhoneNumber(phone);
-        const sendResult = await whatsappService.sendOTP(formattedPhone, otpRecord.otp, 'REGISTRATION');
-
-        if (sendResult.success) {
-          verificationSent = true;
-          verificationMethod = 'SMS';
-          logOTP('sent_successfully', phone, 'REGISTRATION', {
-            otpId: otpRecord._id,
-            method: sendResult.method || 'whatsapp',
-            verificationPreference,
-            ...requestInfo
-          });
-        } else {
-          // Delete the OTP if sending failed
-          await OTP.findByIdAndDelete(otpRecord._id);
-          logError(new Error('OTP sending failed'), {
-            context: 'auth.register.sms_verification',
-            phone,
-            otpId: otpRecord._id,
-            sendResult,
-            verificationPreference,
-            ...requestInfo
-          });
-        }
-      } catch (smsError) {
-        logError(smsError, {
-          context: 'auth.register.sms_verification',
-          userId: user._id,
-          phone,
-          verificationPreference,
-          ...requestInfo
-        });
-      }
-    }
-
-    // Update user with verification method used
-    if (verificationMethod) {
-      user.lastVerificationMethod = verificationMethod;
-      await user.save();
-    }
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, phone: user.phone },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    logUserActivity('registered', user._id, phone, {
-      role,
-      bloodGroup,
-      verificationPreference,
-      verificationMethod,
-      verificationSent,
-      ...requestInfo
-    });
-
-    const responseMessage = verificationSent 
-      ? `Registration successful. Please check your ${verificationMethod === 'EMAIL' ? 'email' : 'phone'} to verify your account.`
-      : 'Registration successful. Please contact support for verification.';
-
-    res.status(201).json({
-      message: responseMessage,
-      token,
-      verificationMethod,
-      verificationSent,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        bloodGroup: user.bloodGroup,
-        location: user.location,
-        availability: user.availability,
-        isVerified: user.isVerified,
-        emailVerified: user.emailVerified,
-        verificationPreference: user.verificationPreference,
-        lastVerificationMethod: user.lastVerificationMethod,
-        lastDonatedAt: user.lastDonatedAt,
-        medicalHistory: user.medicalHistory,
-        createdAt: user.createdAt
-      }
-    });
 
   } catch (error) {
-    logError(error, {
-      context: 'auth.register',
-      phone: req.body.phone,
-      ...getRequestInfo(req)
-    });
+    console.error('❌ Registration error:', error);
     
-    res.status(500).json({ 
-      error: 'Registration failed',
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed',
+      error: error.message
     });
   }
 });
@@ -1514,4 +1399,4 @@ router.post('/verify-code', [
   }
 });
 
-module.exports = router; 
+module.exports = router;

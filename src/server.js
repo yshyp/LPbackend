@@ -41,9 +41,12 @@ app.use(cors({
       'http://localhost:3000',
       'http://localhost:19006', // Expo development server
       'exp://localhost:19000', // Expo Go app
-      'exp://192.168.68.101:19000', // Your local network
-      'http://192.168.68.101:19006', // Your local network
-      'http://192.168.68.101:3000' // Your local network
+      'exp://192.168.1.6:19000', // Your local network
+      'http://192.168.1.6:19006', // Your local network
+      'http://192.168.1.6:3000', // Your local network
+      'exp://192.168.68.101:19000', // Fallback network
+      'http://192.168.68.101:19006', // Fallback network
+      'http://192.168.68.101:3000' // Fallback network
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
@@ -86,7 +89,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // API routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', userRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -145,6 +148,22 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log('📱 Push notifications will be disabled');
     }
     
+    // Get the local IP address dynamically
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    let localIP = 'localhost';
+    
+    // Find the first non-internal IPv4 address
+    for (const name of Object.keys(interfaces)) {
+      for (const interface of interfaces[name]) {
+        if (interface.family === 'IPv4' && !interface.internal) {
+          localIP = interface.address;
+          break;
+        }
+      }
+      if (localIP !== 'localhost') break;
+    }
+    
     // Listen on all network interfaces (0.0.0.0) to allow external connections
     app.listen(PORT, '0.0.0.0', () => {
       logSystemEvent('server_started', {
@@ -157,8 +176,8 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log(`📱 Environment: ${process.env.NODE_ENV}`);
       console.log(`🌐 Server accessible at:`);
       console.log(`   - Local: http://localhost:${PORT}`);
-      console.log(`   - Network: http://192.168.68.101:${PORT}`);
-      console.log(`   - Health check: http://192.168.68.101:${PORT}/health`);
+      console.log(`   - Network: http://${localIP}:${PORT}`);
+      console.log(`   - Health check: http://${localIP}:${PORT}/health`);
       console.log(`📊 Logs directory: ./logs/`);
     });
   })
@@ -190,4 +209,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-module.exports = app; 
+module.exports = app;

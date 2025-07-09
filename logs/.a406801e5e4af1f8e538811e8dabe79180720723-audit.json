@@ -24,6 +24,26 @@
             "date": 1751518777684,
             "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\error-2025-07-03.log",
             "hash": "089a0117fd345c32bf79a7b77cdf9d13691150acd463c19404cb43feb8175168"
+        },
+        {
+            "date": 1751603815152,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\error-2025-07-04.log",
+            "hash": "4defcc8e8188df850b219aff4a7e0dd50b333416b97ef8864ab6d2c981acc6e7"
+        },
+        {
+            "date": 1751706971594,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\error-2025-07-05.log",
+            "hash": "8b849e2f7fda7cc7aefa9416ba390b0429300f2d6a09c7fcf37307147c01a082"
+        },
+        {
+            "date": 1751771191095,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\error-2025-07-06.log",
+            "hash": "8dd7d007137bc7f13b9c64ae5fb37215e7f8989b637dc23c6fde5c407e1d8316"
+        },
+        {
+            "date": 1752060091446,
+            "name": "C:\\laragon\\www\\lifepulse\\backend\\logs\\error-2025-07-09.log",
+            "hash": "32b190218c4e49c632a221224c1b493a9896da5ae5ab8c757e381e47c6c5d004"
         }
     ],
     "hashType": "sha256"

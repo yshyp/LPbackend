@@ -1,5 +1,7 @@
 const OTP = require('../models/OTP');
 const EmailVerification = require('../models/EmailVerification');
+const Verification = require('../models/Verification');
+const User = require('../models/User'); // Add this line
 const whatsappService = require('./whatsappService');
 const emailService = require('./emailService');
 const { logUserActivity, logError, logSystemEvent } = require('./loggerService');
@@ -115,7 +117,80 @@ class VerificationService {
 
   // Send verification code (unified method)
   async sendVerificationCode(identifier, type, userName = 'User', requestInfo = {}) {
+    console.log('🚀 SendVerificationCode called:', {
+      identifier: identifier.replace(/\w(?=\w{2})/g, '*'),
+      type,
+      userName,
+      method: this.verificationMethod,
+      timestamp: new Date().toISOString()
+    });
+
     try {
+      // If this is SMS and for registration, use the new Twilio Verify method
+      if (this.verificationMethod === 'SMS' && !identifier.includes('@')) {
+        console.log('📱 Using Twilio Verify for SMS:', {
+          identifier: identifier.replace(/\w(?=\w{2})/g, '*'),
+          type
+        });
+        
+        try {
+          // Use Twilio Verify - it generates its own OTP
+          console.log('📤 Calling whatsappService.sendSMSFallback...');
+          const result = await whatsappService.sendSMSFallback(identifier, '', type);
+          console.log('📤 WhatsApp service result:', result);
+          
+          if (!result.success) {
+            console.log('❌ SMS sending failed:', result.error);
+            throw new Error(`SMS sending failed: ${result.error}`);
+          }
+
+          // Store verification record in OTP collection for now (temporary solution)
+          console.log('💾 Storing verification record in database...');
+          try {
+            const otpRecord = await OTP.create({
+              phone: identifier,
+              type: type,
+              code: 'TWILIO_VERIFY', // Placeholder since Twilio manages the actual code
+              verificationSid: result.verificationSid,
+              expiresAt: new Date(Date.now() + this.expiryMinutes * 60 * 1000),
+              verified: false,
+              attempts: 0,
+              ipAddress: requestInfo.ipAddress || 'unknown',
+              userAgent: requestInfo.userAgent || 'unknown'
+            });
+            console.log('✅ Verification record saved:', otpRecord._id);
+          } catch (dbError) {
+            console.error('❌ Failed to save verification record:', dbError);
+            console.error('DB Error stack:', dbError.stack);
+            // Continue anyway since SMS was sent successfully
+          }
+          
+          logUserActivity('verification_code_sent', null, identifier.replace(/\w(?=\w{2})/g, '*'), {
+            type,
+            method: 'SMS',
+            userName: userName.replace(/\w(?=\w{2})/g, '*'),
+            ...requestInfo
+          });
+          
+          const successResult = {
+            success: true,
+            message: `Verification code sent successfully via SMS`,
+            expiresAt: new Date(Date.now() + this.expiryMinutes * 60 * 1000),
+            method: 'SMS',
+            verificationSid: result.verificationSid
+          };
+          
+          console.log('✅ SMS verification process completed successfully:', successResult);
+          return successResult;
+          
+        } catch (smsError) {
+          console.error('❌ SMS verification process error:', smsError);
+          console.error('SMS Error stack:', smsError.stack);
+          throw smsError;
+        }
+      }
+      
+      // Original email logic
       const otp = this.generateOTP();
       const expiresAt = new Date(Date.now() + this.expiryMinutes * 60 * 1000);
 
@@ -129,7 +204,6 @@ class VerificationService {
         // Find userId for existing users (LOGIN, PASSWORD_RESET)
         let userId = null;
         if (type === 'LOGIN' || type === 'PASSWORD_RESET') {
-          const User = require('../models/User');
           const user = await User.findOne({
             $or: [
               { phone: identifier },
@@ -154,7 +228,7 @@ class VerificationService {
         await verificationRecord.save();
 
       } else {
-        // Send via SMS
+        // Send via SMS (old method - fallback)
         sendResult = await this.sendSMSOTP(identifier, otp, type, userName);
         
         // Create OTP record
@@ -180,6 +254,7 @@ class VerificationService {
       };
 
     } catch (error) {
+      console.error('❌ Send verification error:', error);
       logError(error, {
         context: 'verificationService.sendVerificationCode',
         identifier: identifier.replace(/\w(?=\w{2})/g, '*'),
@@ -199,7 +274,33 @@ class VerificationService {
     try {
       let verificationResult;
 
-      if (this.verificationMethod === 'EMAIL' || identifier.includes('@')) {
+      if (this.verificationMethod === 'SMS' && !identifier.includes('@')) {
+        // For Twilio Verify SMS
+        const result = await whatsappService.verifyOTP(identifier, code);
+        
+        if (!result.success || !result.valid) {
+          return {
+            valid: false,
+            message: 'Invalid verification code'
+          };
+        }
+        
+        // Find and update the OTP record
+        const otpRecord = await OTP.findOne({
+          phone: identifier,
+          type: type
+        }).sort({ createdAt: -1 });
+        
+        if (otpRecord) {
+          otpRecord.verified = true;
+          await otpRecord.save();
+        }
+        
+        verificationResult = {
+          valid: true,
+          otpRecord: otpRecord
+        };
+      } else if (this.verificationMethod === 'EMAIL' || identifier.includes('@')) {
         // Verify email token
         verificationResult = await EmailVerification.verifyToken(
           code,
@@ -208,7 +309,7 @@ class VerificationService {
           requestInfo.userAgent
         );
       } else {
-        // Verify SMS OTP
+        // Verify SMS OTP (old method)
         verificationResult = await OTP.verifyOTP(identifier, code, type, requestInfo);
       }
 
@@ -239,6 +340,7 @@ class VerificationService {
       };
 
     } catch (error) {
+      console.error('❌ Verify code error:', error);
       logError(error, {
         context: 'verificationService.verifyCode',
         identifier: identifier.replace(/\w(?=\w{2})/g, '*'),
@@ -250,6 +352,115 @@ class VerificationService {
         valid: false,
         message: 'Verification failed due to server error'
       };
+    }
+  }
+
+  // Send verification (updated method)
+  async sendVerification(user, method = 'sms') {
+    try {
+      if (method === 'sms') {
+        console.log(`📱 Sending SMS verification to ${user.phone}`);
+        
+        // Use Twilio Verify - it generates its own OTP
+        const result = await whatsappService.sendSMSFallback(user.phone, '', 'REGISTRATION');
+        
+        if (!result.success) {
+          throw new Error(`SMS sending failed: ${result.error}`);
+        }
+        
+        // Store verification record (without OTP since Twilio manages it)
+        await Verification.findOneAndUpdate(
+          { userId: user._id },
+          {
+            userId: user._id,
+            method: 'sms',
+            verificationSid: result.verificationSid, // Store Twilio's verification SID
+            verified: false,
+            attempts: 0,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+          },
+          { upsert: true, new: true }
+        );
+        
+        return { success: true, method: 'sms', message: 'OTP sent via SMS' };
+      }
+      
+      // Email verification (existing logic)
+      if (method === 'email') {
+        const otp = this.generateOTP();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        
+        await Verification.findOneAndUpdate(
+          { userId: user._id },
+          {
+            userId: user._id,
+            otp,
+            expiresAt,
+            method: 'email',
+            verified: false,
+            attempts: 0
+          },
+          { upsert: true, new: true }
+        );
+        
+        await this.sendEmailOTP(user.email, otp, 'REGISTRATION', user.name);
+        return { success: true, method: 'email', message: 'OTP sent via email' };
+      }
+      
+    } catch (error) {
+      console.error('Verification sending error:', error);
+      throw error;
+    }
+  }
+
+  // Verify OTP (updated method)
+  async verifyOTP(userId, otp, method = 'sms') {
+    try {
+      const verification = await Verification.findOne({ userId });
+      
+      if (!verification) {
+        throw new Error('No verification found');
+      }
+      
+      if (verification.expiresAt < new Date()) {
+        throw new Error('OTP has expired');
+      }
+      
+      if (method === 'sms') {
+        // Use Twilio Verify to check the OTP
+        const user = await User.findById(userId);
+        const result = await whatsappService.verifyOTP(user.phone, otp);
+        
+        if (!result.success || !result.valid) {
+          verification.attempts += 1;
+          await verification.save();
+          throw new Error('Invalid OTP');
+        }
+        
+        // Mark as verified
+        verification.verified = true;
+        await verification.save();
+        
+        return { success: true, message: 'SMS verification successful' };
+      }
+      
+      // Email verification (existing logic)
+      if (method === 'email') {
+        if (verification.otp !== otp) {
+          verification.attempts += 1;
+          await verification.save();
+          throw new Error('Invalid OTP');
+        }
+        
+        verification.verified = true;
+        await verification.save();
+        
+        return { success: true, message: 'Email verification successful' };
+      }
+      
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      throw error;
     }
   }
 
@@ -268,4 +479,4 @@ class VerificationService {
   }
 }
 
-module.exports = new VerificationService(); 
+module.exports = new VerificationService();

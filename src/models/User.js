@@ -11,12 +11,20 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: false,
+    required: false, // Make email optional
     unique: true,
-    sparse: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email address']
+    sparse: true, // Allow multiple null/undefined values
+    validate: {
+      validator: function(email) {
+        // Skip validation for placeholder emails or empty emails
+        if (!email || email.includes('@placeholder.lifepulse')) {
+          return true;
+        }
+        // Standard email validation for real emails
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      },
+      message: 'Please enter a valid email address'
+    }
   },
   phone: {
     type: String,
@@ -379,4 +387,4 @@ userSchema.methods.isEligibleToDonate = function() {
   }
 };
 
-module.exports = mongoose.model('User', userSchema); 
+module.exports = mongoose.model('User', userSchema);
